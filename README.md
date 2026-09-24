@@ -32,7 +32,7 @@ install.sh after every `git pull` to refresh the runtime copy.
 ## One-step install
 
 ```bash
-git clone <your-repo-url> read-it
+git clone https://github.com/Monarch-25/readIT.git read-it
 cd read-it
 ./install.sh                 # venv + deps + browser helper registration
 # …or prefetch the voice weights now instead of from the player later:
