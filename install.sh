@@ -3,6 +3,7 @@
 #
 #   ./install.sh              # venv + deps + native-helper registration
 #   ./install.sh --download   # ...plus prefetch the Kokoro weights now
+#   ./install.sh doctor       # diagnose helper/registration problems
 #
 # After this, the only manual step is loading the unpacked extension in
 # your browser (see README) — the extension then starts/stops/downloads
@@ -16,14 +17,64 @@ DOWNLOAD_NOW=0
 for arg in "$@"; do
   case "$arg" in
     --download) DOWNLOAD_NOW=1 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-    *) echo "unknown flag: $arg (try --download)" >&2; exit 1 ;;
+    doctor) DOCTOR=1 ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    *) echo "unknown flag: $arg (try --download or doctor)" >&2; exit 1 ;;
   esac
 done
 
 say()  { printf '\033[1m[read-it]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[read-it]\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m[read-it]\033[0m %s\n' "$*" >&2; exit 1; }
+
+APP_SUP="$HOME/Library/Application Support"
+CANDIDATES=(
+  "$APP_SUP/Google/Chrome"
+  "$APP_SUP/Chromium"
+  "$APP_SUP/BraveSoftware/Brave-Browser"
+  "$APP_SUP/Microsoft Edge"
+  "$APP_SUP/Arc/User Data"
+  "$APP_SUP/Comet"
+  "$APP_SUP/Dia"
+)
+
+# --- doctor: diagnose without changing anything ----------------------------------
+if [[ "${DOCTOR:-0}" -eq 1 ]]; then
+  say "repo: $REPO"
+  [[ -x "$REPO/.venv/bin/python" ]] \
+    && say "venv python: OK ($("$REPO/.venv/bin/python" -c 'import sys; print(sys.version.split()[0])'))" \
+    || warn "venv python MISSING — run ./install.sh"
+  [[ -x "$REPO/native/readit_host.sh" ]] \
+    && say "helper launcher: OK" \
+    || warn "helper launcher MISSING — run ./install.sh"
+  echo "--- native-messaging manifests ---"
+  found=0
+  for base in "${CANDIDATES[@]}"; do
+    f="$base/NativeMessagingHosts/$HOST_NAME.json"
+    if [[ -f "$f" ]]; then
+      found=1
+      target="$(python3 -c "import json;print(json.load(open('$f'))['path'])" 2>/dev/null || echo "?")"
+      if [[ -x "$target" ]]; then st="OK (launcher runs)"; else st="BROKEN (launcher missing: $target)"; fi
+      say "$(basename "$base"): registered — $st"
+    else
+      if [[ -d "$base" ]]; then say "$(basename "$base"): browser present but NOT registered"; fi
+    fi
+  done
+  [[ "$found" -eq 0 ]] && warn "helper is not registered in ANY browser — run ./install.sh"
+  echo "--- weights & ports ---"
+  du -shL ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16 2>/dev/null \
+    || echo "Kokoro weights: not downloaded"
+  for port in 8901 8902; do
+    if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+      say "port $port: LISTENING ($(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' '))"
+    else
+      say "port $port: free"
+    fi
+  done
+  echo "--- checklist ---"
+  echo "Extension id in chrome://extensions must be: dnpkdcbdccnpnmcojaemknfbnfkfkgld"
+  exit 0
+fi
 
 # --- 1. platform -----------------------------------------------------------
 [[ "$(uname -s)" == "Darwin" ]] || die "macOS only (found $(uname -s))."
@@ -63,16 +114,7 @@ EOF
 chmod +x "$LAUNCHER"
 chmod +x "$REPO/native/readit_host.py"
 
-APP_SUP="$HOME/Library/Application Support"
-CANDIDATES=(
-  "$APP_SUP/Google/Chrome"
-  "$APP_SUP/Chromium"
-  "$APP_SUP/BraveSoftware/Brave-Browser"
-  "$APP_SUP/Microsoft Edge"
-  "$APP_SUP/Arc/User Data"
-  "$APP_SUP/Comet"
-  "$APP_SUP/Dia"
-)
+# (browser CANDIDATES list is defined once near the top and reused here.)
 REGISTERED=0
 for base in "${CANDIDATES[@]}"; do
   if [[ -d "$base" ]]; then
