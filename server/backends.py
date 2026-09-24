@@ -3,7 +3,7 @@
 Each backend exposes the same small interface so the HTTP layer in
 tts_server.py works unchanged:
 
-    name            human/machine id, e.g. "mlx-qwen3", "mlx-kokoro"
+    name            human/machine id, currently "mlx-kokoro"
     model_path      HF id or local path (reported by /healthz)
     default_voice   fallback voice
     voices          list of voice ids (populated by load())
@@ -23,91 +23,6 @@ from typing import Any
 import numpy as np
 
 log = logging.getLogger("tts_backends")
-
-
-class QwenBackend:
-    """Alibaba Qwen3-TTS CustomVoice via mlx-audio. Voice + language +
-    free-form style instructions per request."""
-
-    name = "mlx-qwen3"
-    MAX_NEW_TOKENS_DEFAULT = 2048
-    SUPPORTED_LANGUAGES = {
-        "auto", "chinese", "english", "japanese", "korean", "german",
-        "french", "russian", "portuguese", "spanish", "italian",
-    }
-
-    def __init__(self, model_path: str, default_voice: str, default_language: str):
-        self.model_path = model_path
-        self.default_voice = default_voice
-        self.default_language = default_language
-        self.model = None
-        self.voices: list[str] = []
-        self._lock = threading.Lock()
-
-    def load(self) -> None:
-        from mlx_audio.tts.utils import load_model  # local import: slow
-
-        log.info("loading MLX model %s ...", self.model_path)
-        t0 = time.time()
-        self.model = load_model(self.model_path)
-        try:
-            self.voices = list(self.model.get_supported_speakers())
-        except Exception:  # noqa: BLE001
-            self.voices = [self.default_voice]
-        if self.default_voice not in self.voices and self.voices:
-            self.default_voice = self.voices[0]
-        log.info(
-            "model ready in %.1fs, %d voices, sample_rate=%s",
-            time.time() - t0, len(self.voices), getattr(self.model, "sample_rate", "?"),
-        )
-
-    @property
-    def sample_rate(self) -> int:
-        return int(getattr(self.model, "sample_rate", 24000))
-
-    def voices_payload(self) -> dict[str, Any]:
-        return {"voices": self.voices, "uploaded_voices": []}
-
-    def synthesize(
-        self,
-        text: str,
-        voice: str | None,
-        language: str | None,
-        instructions: str | None,
-        max_new_tokens: int | None,
-    ) -> np.ndarray:
-        """Run one generation; returns mono float32 in [-1, 1]."""
-        with self._lock:
-            if self.model is None:
-                raise RuntimeError("model not loaded")
-            voice = (voice or self.default_voice)
-            if voice not in self.voices and self.voices:
-                voice = self.voices[0]
-            language = (language or self.default_language).lower()
-            if language not in self.SUPPORTED_LANGUAGES:
-                language = "auto"
-            kwargs: dict[str, Any] = dict(
-                text=text,
-                speaker=voice,
-                language=language,
-                instruct=instructions or None,
-                verbose=False,
-            )
-            if max_new_tokens:
-                kwargs["max_tokens"] = int(max_new_tokens)
-            else:
-                kwargs["max_tokens"] = self.MAX_NEW_TOKENS_DEFAULT
-
-            audio_chunks = []
-            for result in self.model.generate_custom_voice(**kwargs):
-                audio_chunks.append(np.asarray(result.audio, dtype=np.float32).reshape(-1))
-            if not audio_chunks:
-                raise RuntimeError("empty generation")
-            audio = np.concatenate(audio_chunks)
-            peak = float(np.max(np.abs(audio))) if audio.size else 0.0
-            if peak > 1.0:
-                audio = audio / peak
-            return audio
 
 
 class KokoroBackend:

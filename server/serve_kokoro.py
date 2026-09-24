@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """MLX Kokoro-82M server for Read-It (vLLM-Omni-compatible API).
 
-Kokoro is an 82M-parameter open-weight TTS model — much smaller than Qwen3
-yet strong on English prose, with 54 built-in voice presets. The voice id
-selects the language (af_*/am_* American English, bf_*/bm_* British, ...),
-so the `language` request field is informational; `instructions` and
-`max_new_tokens` are accepted and ignored (Kokoro takes neither).
+Kokoro is an 82M-parameter open-weight TTS model with 54 built-in voice
+presets. The voice id selects the language (af_*/am_* American English,
+bf_*/bm_* British, ...), so the `language` request field is informational;
+`instructions` and `max_new_tokens` are accepted and ignored (Kokoro takes
+neither).
 
-Same API as serve_mlx.py, different default port so both can run side by
-side — point the extension popup at whichever you prefer. Needs the misaki
-G2P package (see requirements.txt).
+The extension popup talks to this server; any vLLM-Omni-compatible client
+works too. Needs the misaki G2P package (see requirements.txt).
 
 Usage:
   python serve_kokoro.py --port 8902

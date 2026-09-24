@@ -5,7 +5,7 @@
 })(typeof self !== 'undefined' ? self : globalThis, function () {
   'use strict';
 
-  const DEFAULT_VOICE = 'aiden';
+  const DEFAULT_VOICE = 'af_heart';
   const DEFAULT_LANGUAGE = 'English';
   const RESPONSE_FORMAT = 'wav';
   const MAX_NEW_TOKENS = 2048;

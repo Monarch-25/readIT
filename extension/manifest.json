@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Novel Reader",
   "version": "0.3.0",
-  "description": "Paste any text and have it read aloud. Runs a local MLX voice server (Kokoro/Qwen) from the popup — no terminal needed — or points at any vLLM-Omni endpoint.",
+  "description": "Paste any text and have it read aloud. Runs a local MLX Kokoro voice server from the player — no terminal needed — or points at any vLLM-Omni endpoint.",
   "permissions": [
     "storage",
     "nativeMessaging"

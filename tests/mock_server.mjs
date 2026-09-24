@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
-export const VOICES = ['aiden', 'dylan', 'eric', 'ono_anna', 'ryan', 'serena', 'sohee', 'uncle_fu', 'vivian'];
+export const VOICES = ['af_heart', 'af_bella', 'af_nova', 'af_sky', 'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'jf_alpha', 'zf_xiaobei', 'pf_dora'];
 
 const SAMPLE_RATE = 24000;
 

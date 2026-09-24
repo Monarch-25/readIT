@@ -1,18 +1,16 @@
 # Read-It — listen to anything with local AI voices 🔊
 
 Paste text (or drop a `.txt`/`.md` file) into a reader window and have it read
-aloud — no page scraping, no highlighting. Voices run **on your Mac** via
-Apple's MLX framework: **Kokoro-82M** (54 voices, excellent English) and
-**Qwen3-TTS** (style instructions, strong Chinese). No terminal needed after
-setup — the browser extension downloads the weights and starts/stops the
-server itself. A GPU **vLLM** server works too, if you have one.
+aloud — no page scraping, no highlighting. Voices run **on your Mac** via Apple's MLX framework: **Kokoro-82M**
+(54 voices, excellent English). No terminal needed after setup — the browser
+extension downloads the weights and starts/stops the server itself. A remote
+**vLLM** server works too, if you have one.
 
 ```
 ┌──────────────┐  native-msg   ┌────────────────┐  spawn/stop  ┌───────────────┐
 │  Extension   │◄─────────────►│ readit_host.py │◄────────────►│ MLX server    │
 │ popup/player │  stdio JSON   │ (no terminal)  │  subprocess  │ :8902 kokoro  │
-└──────────────┘               └────────────────┘              │ :8901 qwen    │
-       │                                                      └───────────────┘
+└──────────────┘               └────────────────┘              └───────────────┘
        │ manual endpoint also possible ──► remote vLLM-Omni :8091 (GPU box)
 ```
 
@@ -77,11 +75,9 @@ anything.
   English, `bf_*`/`bm_*` British, `jf_*` Japanese, `zf_*`/`zm_*` Mandarin,
   plus Spanish, French, Hindi, Italian, Portuguese. `af_bella` is the usual
   runner-up to `af_heart`.
-- **Qwen3-TTS** (style instructions + explicit language): run
-  `./.venv/bin/python server/serve_mlx.py --port 8901` once, then in the
-  player click **custom server…**, enter `http://127.0.0.1:8901` and
-  **Connect**.
-- Both MLX servers can run side by side (`:8901` Qwen, `:8902` Kokoro).
+- **Style** is a Kokoro-friendly narration direction (Narrator, Martial
+  novel, Warm, Dramatic, Wandering swordsman, Plain). The voice id picks the
+  language, so the Language dropdown only matters for remote servers.
 
 ## Using a remote vLLM server (GPU box)
 
@@ -100,20 +96,18 @@ To stand one up with vLLM-Omni on a CUDA machine:
 git clone https://github.com/vllm-project/vllm-omni && cd vllm-omni
 uv venv --python 3.12 && . .venv/bin/activate
 uv pip install -e . --no-build-isolation   # pick the tag matching your vllm
-MODEL=Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice PORT=8091 \
-  /path/to/read-it/server/serve_vllm.sh
+MODEL=<your-tts-model> PORT=8091 vllm serve "$MODEL" --port "$PORT" --host 0.0.0.0
 ```
 
 Then paste `http://<gpu-host>:8091` into the player's **custom server…**
-field and hit **Connect**. (`server/serve_vllm.sh` in this repo wraps the
-`vllm serve` invocation; adjust `DEPLOY_CONFIG` to your vLLM-Omni version.)
+field and hit **Connect**. Any endpoint speaking the contract above works,
+regardless of which model serves it.
 
 ## Configuration reference
 
 | | default |
 |---|---|
 | Kokoro server | `http://127.0.0.1:8902` (`server/serve_kokoro.py`, model `mlx-community/Kokoro-82M-bf16`, voice `af_heart`) |
-| Qwen server | `http://127.0.0.1:8901` (`server/serve_mlx.py`, voice `aiden`) |
 | Runtime state | `logs/` — `<backend>.pid`, `<backend>.log`, `download.json` |
 | Weights | Hugging Face cache (`~/.cache/huggingface`), shared with any manual runs |
 | Extension state | `chrome.storage.local` (`ttsSettings`, `backend` snapshot, `readerTheme`) |
@@ -148,7 +142,7 @@ field and hit **Connect**. (`server/serve_vllm.sh` in this repo wraps the
 cd tests && npm install
 npm run unit            # sentence splitter + payload builders
 npm run e2e             # Playwright: real extension vs mock vLLM-Omni server
-npm run e2e:live        # same, against a real Qwen server on :8901
+npm run e2e:live        # same, against a real Kokoro server on :8902
 npm run e2e:live-kokoro # same, against a real Kokoro server on :8902
 ./../.venv/bin/python -m compileall ../server ../native   # python sanity
 ```

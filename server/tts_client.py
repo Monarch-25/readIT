@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""CLI client for the Read-It TTS servers (vLLM-Omni or MLX backend).
+"""CLI client for the Read-It Kokoro server (or any vLLM-Omni endpoint).
 
 Examples:
-  # probe voices (Qwen server on :8901, Kokoro server on :8902)
-  python tts_client.py --endpoint http://127.0.0.1:8901 voices
+  # probe voices
   python tts_client.py --endpoint http://127.0.0.1:8902 voices
 
-  # one utterance -> wav file
-  python tts_client.py --endpoint http://127.0.0.1:8901 speak \
-      --text "月华如水，照在孤峰之上。" --voice serena --language Chinese \
-      --instructions "restrained martial-novel narrator" -o out.wav
-
-  # same against Kokoro (voice picks the language; instructions ignored)
+  # one utterance -> wav file (the voice id picks the language)
   python tts_client.py --endpoint http://127.0.0.1:8902 speak \
       --text "The rains came late that autumn." --voice af_heart -o out.wav
 
   # batch of sentences -> directory of wavs
-  python tts_client.py --endpoint http://127.0.0.1:8901 batch \
-      --texts-file sentences.txt --voice vivian -o outdir/
+  python tts_client.py --endpoint http://127.0.0.1:8902 batch \
+      --texts-file sentences.txt --voice af_bella -o outdir/
 """
 from __future__ import annotations
 
@@ -29,7 +23,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_ENDPOINT = "http://127.0.0.1:8901"
+DEFAULT_ENDPOINT = "http://127.0.0.1:8902"
 
 
 def request(endpoint: str, path: str, payload: dict | None = None, timeout: float = 120.0):
@@ -151,7 +145,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("speak", help="POST /v1/audio/speech (single)")
     s.add_argument("--text", default=None)
     s.add_argument("--text-file", default=None)
-    s.add_argument("--voice", default="aiden")
+    s.add_argument("--voice", default="af_heart")
     s.add_argument("--language", default="english")
     s.add_argument("--instructions", default="")
     s.add_argument("--model", default=None)
@@ -162,7 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
     b = sub.add_parser("batch", help="POST /v1/audio/speech/batch")
     b.add_argument("--text", default=None, help="single sentence")
     b.add_argument("--texts-file", default=None, help="one sentence per line")
-    b.add_argument("--voice", default="aiden")
+    b.add_argument("--voice", default="af_heart")
     b.add_argument("--language", default="english")
     b.add_argument("--instructions", default="")
     b.add_argument("--model", default=None)

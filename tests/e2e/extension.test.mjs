@@ -188,7 +188,7 @@ test('pasted text is read via /v1/audio/speech/batch with correct payload', asyn
 
   const first = mock.getBatchRequests()[0].body;
   assert.ok(Array.isArray(first.items) && first.items.length === 4, `batch size should be 4, got ${first.items.length}`);
-  assert.equal(first.voice, 'aiden');
+  assert.equal(first.voice, 'af_heart');
   assert.equal(first.speed, 1.0);
   assert.equal(first.language, 'English');
   assert.equal(first.task_type, 'CustomVoice');

@@ -17,7 +17,7 @@
 
   const DEFAULTS = {
     endpoint: '',
-    voice: 'aiden',
+    voice: 'af_heart',
     language: 'English',
     instructions: '',
     speed: 1,
@@ -500,8 +500,8 @@
     }
     if (!voices.length) {
       const opt = document.createElement('option');
-      opt.value = (state.settings.voice || 'aiden').toLowerCase();
-      opt.textContent = state.settings.voice || 'aiden';
+      opt.value = (state.settings.voice || 'af_heart').toLowerCase();
+      opt.textContent = state.settings.voice || 'af_heart';
       sel.appendChild(opt);
     }
     if ([...sel.options].some((o) => o.value === wanted)) sel.value = wanted;

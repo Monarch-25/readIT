@@ -42,12 +42,6 @@ BACKENDS = {
         "model": "mlx-community/Kokoro-82M-bf16",
         "label": "Kokoro-82M",
     },
-    "qwen": {
-        "script": os.path.join(REPO, "server", "serve_mlx.py"),
-        "port": 8901,
-        "model": "mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit",
-        "label": "Qwen3-TTS",
-    },
 }
 
 
