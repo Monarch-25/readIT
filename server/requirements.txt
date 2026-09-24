@@ -1,0 +1,8 @@
+mlx>=0.21
+mlx-audio>=0.5.5
+misaki[en]>=0.9  # G2P text processing for the Kokoro backend
+fastapi>=0.110
+uvicorn>=0.29
+soundfile>=0.12
+numpy>=1.26
+huggingface_hub>=0.24

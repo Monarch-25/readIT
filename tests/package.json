@@ -1,0 +1,16 @@
+{
+  "name": "read-it-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "unit": "node --test unit/chunker.test.mjs",
+    "mock": "node mock_server.mjs --port 8123",
+    "e2e": "node --test e2e/extension.test.mjs",
+    "e2e:live": "node --test e2e/real_mlx.test.mjs",
+    "e2e:live-kokoro": "node --test e2e/real_kokoro.test.mjs",
+    "test": "node --test unit/chunker.test.mjs e2e/extension.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

@@ -1,0 +1,21 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# runtime
+logs/
+*.log
+*.wav
+out.wav
+batch_out/
+wavs/
+
+# node
+node_modules/
+
+# macOS
+.DS_Store
+
+# local model/venv caches live outside the repo (HF cache); nothing to ignore here

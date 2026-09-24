@@ -1,0 +1,602 @@
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/fraunces-opsz.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Fraunces";
+  src: url("../fonts/fraunces-opsz-italic.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* One family everywhere: Fraunces carries the whole voice of the page.
+   Native controls inherit it; nothing else is needed. */
+:root {
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+
+  --page: #161310;
+  --glow: #251b12;
+  --ink: #ece4d4;
+  --soft: #a89a80;
+  --faint: #6e6350;
+  --accent: #ffb545;
+  --accent-deep: #c07f1f;
+  --wash: rgba(255, 181, 69, 0.12);
+  --rule: #3a3129;
+  --well: rgba(0, 0, 0, 0.25);
+  --pulse: rgba(255, 181, 69, 0.5);
+  --ok: #57d9a3;
+  --err: #ff7a7a;
+}
+
+body[data-theme="ocean"] {
+  --page: #0d151d;
+  --glow: #12293a;
+  --ink: #e3edf4;
+  --soft: #8ba3b8;
+  --faint: #5a6f83;
+  --accent: #6fd0f5;
+  --accent-deep: #2f96c4;
+  --wash: rgba(111, 208, 245, 0.12);
+  --rule: #24384a;
+  --pulse: rgba(111, 208, 245, 0.5);
+}
+
+body[data-theme="forest"] {
+  --page: #101511;
+  --glow: #17251b;
+  --ink: #e6efe2;
+  --soft: #93a892;
+  --faint: #5f7261;
+  --accent: #86e3a1;
+  --accent-deep: #3fae6b;
+  --wash: rgba(134, 227, 161, 0.12);
+  --rule: #26382c;
+  --pulse: rgba(134, 227, 161, 0.5);
+}
+
+body[data-theme="plum"] {
+  --page: #151116;
+  --glow: #251a2b;
+  --ink: #eee5f2;
+  --soft: #a493b3;
+  --faint: #6d5f78;
+  --accent: #d99cff;
+  --accent-deep: #9a5fd0;
+  --wash: rgba(217, 156, 255, 0.13);
+  --rule: #382c44;
+  --pulse: rgba(217, 156, 255, 0.5);
+}
+
+body[data-theme="martial"] {
+  --page: #100d0b;
+  --glow: #2a1610;
+  --ink: #e8dcc4;
+  --soft: #a08e70;
+  --faint: #66573f;
+  --accent: #e8533f;
+  --accent-deep: #c9973f;
+  --wash: rgba(232, 83, 63, 0.13);
+  --rule: #3d2c22;
+  --well: rgba(0, 0, 0, 0.3);
+  --pulse: rgba(201, 151, 63, 0.55);
+}
+
+body[data-theme="paper"] {
+  --page: #f2ecdd;
+  --glow: #faf5e9;
+  --ink: #2b2620;
+  --soft: #7c7261;
+  --faint: #a89d86;
+  --accent: #b3541e;
+  --accent-deep: #7e3c12;
+  --wash: rgba(179, 84, 30, 0.12);
+  --rule: #d8cdb4;
+  --well: rgba(120, 100, 70, 0.1);
+  --pulse: rgba(179, 84, 30, 0.4);
+  --ok: #1f7a4d;
+  --err: #b3261e;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 480px at 50% -8%, var(--glow) 0%, var(--page) 62%) fixed,
+    var(--page);
+}
+
+/* Reading-progress hairline pinned to the top edge. */
+.readbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  height: 2px;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.readbar .fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { padding: 14px 26px 0; flex-shrink: 0; }
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wordmark h1 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.themes { display: flex; align-items: center; gap: 7px; }
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--faint);
+  background: var(--sw, var(--accent));
+  cursor: pointer;
+}
+
+.swatch:hover { transform: scale(1.2); }
+.swatch.active { border-color: var(--ink); box-shadow: 0 0 0 2px var(--rule); }
+
+/* The running head: where you are, in the convention of books. */
+.runhead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--soft);
+}
+
+.runhead .src {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.runhead .voice { flex-shrink: 0; }
+
+/* ---------- voice settings: three quiet dropdowns + a server line ---------- */
+
+.voiceset {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-style: italic;
+  font-size: 12.5px;
+  color: var(--soft);
+}
+
+.pick select {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--ink);
+  font: inherit;
+  font-style: normal;
+  font-size: 15.5px;
+  padding: 1px 2px;
+  margin: 0;
+  max-width: 180px;
+  cursor: pointer;
+}
+
+.pick select:focus { outline: 1px solid var(--accent-deep); outline-offset: 2px; }
+
+.srv {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-left: auto;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--soft);
+}
+
+.srvdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.srvdot.ok { background: var(--accent); }
+.srvdot.err { background: var(--err); }
+
+.srvbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.srvbtn:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.srvbtn:disabled { opacity: 0.4; cursor: default; }
+
+.srvlink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--faint);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.srvlink:hover { color: var(--soft); }
+
+.customrow { display: flex; gap: 10px; align-items: baseline; flex-basis: 100%; }
+
+.customrow[hidden] { display: none; }
+
+.customrow input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  padding: 2px;
+}
+
+.customrow input:focus { outline: 1px solid var(--accent-deep); outline-offset: 2px; }
+
+/* ---------- chapter flow ---------- */
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 26px;
+  min-height: 0;
+}
+
+.hero { padding: 26px 0 0; flex-shrink: 0; }
+
+.hero .ctx {
+  margin: 0;
+  font-style: italic;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--soft);
+  opacity: 0.8;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero .ctx:empty { display: none; }
+
+/* The thesis: the sentence being spoken, set large. */
+.hero .thesis {
+  margin: 10px 0;
+  font-size: clamp(23px, 4.6vw, 31px);
+  line-height: 1.42;
+  font-weight: 560;
+  letter-spacing: 0.002em;
+  text-wrap: pretty;
+}
+
+.hero .thesis.swap { animation: arrive 0.32s ease; }
+
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Martial Realm sets its thesis with a cinnabar drop cap. */
+body[data-theme="martial"] .hero .thesis::first-letter {
+  font-size: 1.35em;
+  font-weight: 700;
+  color: var(--accent);
+  padding-right: 1px;
+}
+
+.heromargin {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The voice itself, drawn live from the audio element. */
+.voiceprint {
+  width: 100%;
+  height: 46px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.stateline {
+  margin: 8px 0 0;
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--soft);
+  min-height: 22px;
+  flex-shrink: 0;
+}
+
+.msgline { margin: 0; font-size: 13px; min-height: 0; flex-shrink: 0; }
+.msgline:empty { display: none; }
+.msgline.error { color: var(--err); }
+.msgline.ok { color: var(--ok); }
+
+/* ---------- source ---------- */
+
+.source { margin-top: 14px; flex-shrink: 0; }
+
+.sourceline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  color: var(--soft);
+  font: inherit;
+  font-style: italic;
+  font-size: 13.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sourceline:hover .replace { color: var(--accent); }
+
+.sourceline .sep { color: var(--faint); font-style: normal; }
+.sourceline .replace { margin-left: auto; font-style: normal; font-size: 13px; color: var(--soft); }
+
+.sourcebody textarea {
+  width: 100%;
+  background: var(--well);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink);
+  padding: 12px 14px;
+  font: 14px/1.75 var(--serif);
+  resize: vertical;
+  min-height: 96px;
+}
+
+.sourcebody textarea:focus { outline: 1px solid var(--accent-deep); outline-offset: 2px; }
+
+.srcrow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  font-size: 13.5px;
+}
+
+.filebtn {
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 560;
+}
+
+.filebtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.quietbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--soft);
+  font: inherit;
+  cursor: pointer;
+}
+
+.quietbtn:hover { color: var(--ink); }
+
+.srcrow .hint { color: var(--faint); font-style: italic; font-size: 12.5px; }
+.srcrow .count { margin-left: auto; color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+/* Scene break, in the vernacular of books. */
+.asterism {
+  text-align: center;
+  color: var(--faint);
+  font-size: 15px;
+  margin: 20px 0 4px;
+  flex-shrink: 0;
+}
+
+/* ---------- the chapter column ---------- */
+
+.chapter { flex: 1 1 150px; min-height: 110px; display: flex; flex-direction: column; }
+
+.page {
+  position: relative;
+  flex: 1;
+  min-height: 80px;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.9;
+  padding: 6px 0 16px 22px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+.page .invitation { color: var(--faint); font-style: italic; font-size: 14.5px; }
+
+.page .sent { border-radius: 2px; transition: background 0.25s ease, color 0.25s ease; }
+.page .sent.cur { background: var(--wash); }
+
+/* One marginal tick that travels with the reading — a diamond in the margin. */
+#tick {
+  position: absolute;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  transition: top 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+body[data-theme="martial"] #tick { background: var(--accent-deep); }
+
+.chapterfoot { padding: 8px 0 4px; flex-shrink: 0; }
+
+.followtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.followtoggle input { accent-color: var(--accent); }
+
+/* ---------- transport rail ---------- */
+
+.rail {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+  padding: 12px 26px 16px;
+  background: color-mix(in srgb, var(--page) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--rule);
+  flex-shrink: 0;
+}
+
+.rail button {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 15.5px;
+  color: var(--soft);
+  cursor: pointer;
+}
+
+.rail button:hover:not(:disabled) { color: var(--ink); }
+.rail button:disabled { opacity: 0.35; cursor: default; }
+
+.rail button.go { color: var(--accent); font-weight: 600; }
+.rail button.go:hover:not(:disabled) { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+
+.rail select {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--soft);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ---------- one orchestrated entrance ---------- */
+
+body:not(.ready) .masthead,
+body:not(.ready) main > *,
+body:not(.ready) .rail { opacity: 0; }
+
+body.ready .masthead { animation: rise 0.55s ease both; }
+body.ready .hero { animation: rise 0.55s 0.07s ease both; }
+body.ready .voiceprint { animation: rise 0.55s 0.14s ease both; }
+body.ready .stateline { animation: rise 0.55s 0.18s ease both; }
+body.ready .source { animation: rise 0.55s 0.24s ease both; }
+body.ready .asterism { animation: rise 0.55s 0.3s ease both; }
+body.ready .chapter { animation: rise 0.55s 0.34s ease both; }
+body.ready .rail { animation: rise 0.55s 0.4s ease both; }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- drop overlay ---------- */
+
+body.dragover::after {
+  content: "Drop your file — I will read it";
+  position: fixed;
+  inset: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  font-size: 19px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--page) 90%, transparent);
+  border: 1px dashed var(--accent-deep);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ---------- access ---------- */
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
