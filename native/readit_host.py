@@ -13,9 +13,11 @@ to touch a terminal:
 
 Run with --download to act as the detached download worker instead.
 
-State lives in <repo>/logs/: <backend>.pid, download.json, <backend>.log.
-Only stdlib is used here; the download worker imports huggingface_hub
-lazily (it runs under the repo .venv).
+State lives in <app>/logs/: <backend>.pid, download.json, <backend>.log,
+where <app> is the directory containing this file — i.e. the runtime dir
+installed by install.sh (~/Library/ReadIt). Only stdlib is used here; the
+download worker imports huggingface_hub lazily (it runs under the runtime
+.venv).
 """
 from __future__ import annotations
 
@@ -28,16 +30,16 @@ import sys
 import time
 import urllib.request
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 HOST_NAME = "com.readit.tts"
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOGS = os.path.join(REPO, "logs")
-VENV_PY = os.path.join(REPO, ".venv", "bin", "python")
+APP = os.path.dirname(os.path.abspath(__file__))
+LOGS = os.path.join(APP, "logs")
+VENV_PY = os.path.join(APP, ".venv", "bin", "python")
 
 BACKENDS = {
     "kokoro": {
-        "script": os.path.join(REPO, "server", "serve_kokoro.py"),
+        "script": os.path.join(APP, "server", "serve_kokoro.py"),
         "port": 8902,
         "model": "mlx-community/Kokoro-82M-bf16",
         "label": "Kokoro-82M",
@@ -202,7 +204,7 @@ def cmd_start(msg: dict) -> dict:
         logf = open(paths["log"], "ab")
         proc = subprocess.Popen(
             [VENV_PY, cfg["script"], "--port", str(port)],
-            cwd=REPO, stdout=logf, stderr=subprocess.STDOUT,
+            cwd=APP, stdout=logf, stderr=subprocess.STDOUT,
             start_new_session=True,
         )
         with open(paths["pid"], "w") as f:
@@ -269,7 +271,7 @@ def cmd_download(msg: dict) -> dict:
     logf = open(os.path.join(LOGS, "download.log"), "ab")
     subprocess.Popen(
         [VENV_PY, os.path.abspath(__file__), "--download", backend],
-        cwd=REPO, stdout=logf, stderr=subprocess.STDOUT,
+        cwd=APP, stdout=logf, stderr=subprocess.STDOUT,
         start_new_session=True,
     )
     return {"ok": True, "started": True}
@@ -313,7 +315,7 @@ def main() -> int:
     cmd = str(msg.get("cmd") or "")
     try:
         if cmd == "ping":
-            _write_message({"ok": True, "version": VERSION, "repo": REPO})
+            _write_message({"ok": True, "version": VERSION, "app": APP})
         elif cmd == "status":
             _write_message(cmd_status(msg))
         elif cmd == "download":

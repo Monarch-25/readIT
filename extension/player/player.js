@@ -442,7 +442,10 @@
     return new Promise((resolve) => {
       try {
         chrome.runtime.sendNativeMessage(HOST, msg, (resp) => {
-          if (chrome.runtime.lastError) resolve({ ok: false, error: 'native-host-missing' });
+          // Pass the browser's raw message through: "not found" (not
+          // registered) and "has exited" (found but crashing) need
+          // different guidance.
+          if (chrome.runtime.lastError) resolve({ ok: false, error: 'native-error', message: chrome.runtime.lastError.message || 'unknown' });
           else resolve(resp || { ok: false, error: 'empty-response' });
         });
       } catch (err) {
@@ -576,15 +579,18 @@
 
   async function refreshSrv(polling) {
     const resp = await sendNative({ cmd: 'status', backend: LOCAL_BACKEND });
-    if (!resp || !resp.ok || resp.error === 'native-host-missing' || resp.error === 'empty-response') {
-      // No helper — but the Download button stays visible so there is always
-      // something to press; it explains the one-time setup.
-      setSrv('local helper missing — run install.sh', '');
+    const rawMsg = String((resp && (resp.message || resp.error)) || '');
+    if (!resp || !resp.ok) {
+      // No usable helper — but the Download button stays visible so there is
+      // always something to press; it explains the one-time setup.
+      const missing = /not found/i.test(rawMsg) || resp.error === 'empty-response';
+      setSrv(missing ? 'local helper missing — run install.sh' : 'local helper is failing — see below', missing ? '' : 'err');
       const btn = $('srvBtn');
       btn.hidden = false;
       btn.textContent = 'Download';
       btn.disabled = false;
       srvMode = 'download';
+      if (!missing) setStatus('error', 'The helper answered with an error: ' + rawMsg);
       stopSrvPoll();
       return resp;
     }
@@ -617,11 +623,12 @@
       setSrv('fetching weights…', '', '…');
       const resp = await sendNative({ cmd: 'download', backend: LOCAL_BACKEND });
       if (!resp || !resp.ok) {
-        if (resp && resp.error === 'native-host-missing') {
-          setStatus('error', 'The local helper is not installed yet. Run ./install.sh inside the read-it folder, then close and reopen this window — your text and settings are safe.');
+        const rawMsg = String((resp && (resp.message || resp.error)) || 'unknown');
+        if (/not found/i.test(rawMsg)) {
+          setStatus('error', 'The local helper is not installed yet. Run ./install.sh inside the read-it folder, then fully quit and reopen the browser — your text and settings are safe.');
           refreshSrv();
         } else {
-          setStatus('error', 'The download would not start: ' + String((resp && (resp.message || resp.error)) || 'unknown'));
+          setStatus('error', 'The download would not start: ' + rawMsg);
         }
       }
       startSrvPoll();

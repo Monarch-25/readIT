@@ -1,24 +1,33 @@
 #!/usr/bin/env bash
 # Read-It one-step installer (macOS, Apple Silicon M2/M3/M4/M5).
 #
-#   ./install.sh              # venv + deps + native-helper registration
+#   ./install.sh              # runtime install + browser helper registration
 #   ./install.sh --download   # ...plus prefetch the Kokoro weights now
 #   ./install.sh doctor       # diagnose helper/registration problems
 #
-# After this, the only manual step is loading the unpacked extension in
-# your browser (see README) — the extension then starts/stops/downloads
-# everything else itself. No terminal needed beyond this script.
+# What goes where:
+#   this repo            extension sources, python sources, docs (stays put)
+#   ~/Library/ReadIt/    runtime: .venv, host + server code, logs  (created here)
+#   <browser>/NativeMessagingHosts/com.readit.tts.json  (one small file each)
+#   ~/.cache/huggingface  model weights (shared cache)
+#
+# Why ~/Library/ReadIt and not the repo folder: sandboxed browsers (Comet)
+# refuse to execute anything outside blessed locations; ~/Library is the
+# user-writable one they allow. After this, the only manual step is loading
+# the unpacked extension in your browser (see README).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP="$HOME/Library/ReadIt"
 HOST_NAME="com.readit.tts"
 DOWNLOAD_NOW=0
+DOCTOR=0
 
 for arg in "$@"; do
   case "$arg" in
     --download) DOWNLOAD_NOW=1 ;;
     doctor) DOCTOR=1 ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) echo "unknown flag: $arg (try --download or doctor)" >&2; exit 1 ;;
   esac
 done
@@ -39,14 +48,15 @@ CANDIDATES=(
 )
 
 # --- doctor: diagnose without changing anything ----------------------------------
-if [[ "${DOCTOR:-0}" -eq 1 ]]; then
+if [[ "$DOCTOR" -eq 1 ]]; then
   say "repo: $REPO"
-  [[ -x "$REPO/.venv/bin/python" ]] \
-    && say "venv python: OK ($("$REPO/.venv/bin/python" -c 'import sys; print(sys.version.split()[0])'))" \
-    || warn "venv python MISSING — run ./install.sh"
-  [[ -x "$REPO/native/readit_host.sh" ]] \
-    && say "helper launcher: OK" \
-    || warn "helper launcher MISSING — run ./install.sh"
+  say "runtime: $APP"
+  [[ -x "$APP/.venv/bin/python" ]] \
+    && say "runtime venv: OK ($("$APP/.venv/bin/python" -c 'import sys; print(sys.version.split()[0])'))" \
+    || warn "runtime venv MISSING — run ./install.sh"
+  for f in readit_host.py readit_host.sh server/serve_kokoro.py server/backends.py server/tts_server.py; do
+    [[ -f "$APP/$f" ]] && say "runtime file $f: OK" || warn "runtime file $f MISSING — run ./install.sh"
+  done
   echo "--- native-messaging manifests ---"
   found=0
   for base in "${CANDIDATES[@]}"; do
@@ -64,7 +74,7 @@ if [[ "${DOCTOR:-0}" -eq 1 ]]; then
   echo "--- weights & ports ---"
   du -shL ~/.cache/huggingface/hub/models--mlx-community--Kokoro-82M-bf16 2>/dev/null \
     || echo "Kokoro weights: not downloaded"
-  for port in 8901 8902; do
+  for port in 8902; do
     if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
       say "port $port: LISTENING ($(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | tr '\n' ' '))"
     else
@@ -76,12 +86,12 @@ if [[ "${DOCTOR:-0}" -eq 1 ]]; then
   exit 0
 fi
 
-# --- 1. platform -----------------------------------------------------------
+# --- 1. platform -------------------------------------------------------------------
 [[ "$(uname -s)" == "Darwin" ]] || die "macOS only (found $(uname -s))."
 [[ "$(uname -m)" == "arm64" ]] || die "Apple Silicon required (found $(uname -m)). MLX does not run on Intel Macs."
 say "macOS $(sw_vers -productVersion) on $(uname -m) — good."
 
-# --- 2. python ---------------------------------------------------------------
+# --- 2. python -----------------------------------------------------------------------
 command -v python3 >/dev/null || die "python3 not found. Install Python 3.12 from python.org (or: brew install python@3.12)."
 PYVER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 PYMAJ="$(python3 -c 'import sys; print(sys.version_info.major)')"
@@ -91,30 +101,35 @@ if [[ "$PYMAJ" -lt 3 || "$PYMIN" -lt 10 ]]; then
 fi
 say "python3 $PYVER — good."
 
-# --- 3. venv + deps ------------------------------------------------------------
-if [[ ! -x "$REPO/.venv/bin/python" ]]; then
-  say "creating virtualenv…"
-  python3 -m venv "$REPO/.venv"
+# --- 3. runtime dir + venv + deps -------------------------------------------------------
+mkdir -p "$APP/server" "$APP/logs"
+if [[ ! -x "$APP/.venv/bin/python" ]]; then
+  say "creating runtime virtualenv…"
+  python3 -m venv "$APP/.venv"
 fi
 say "installing python dependencies (a few minutes on first run)…"
-"$REPO/.venv/bin/pip" install -q --upgrade pip
-"$REPO/.venv/bin/pip" install -q -r "$REPO/server/requirements.txt"
+"$APP/.venv/bin/pip" install -q --upgrade pip
+"$APP/.venv/bin/pip" install -q -r "$REPO/server/requirements.txt"
 say "dependencies installed."
 
-# --- 4. native-messaging helper --------------------------------------------------
-# Browsers read <support-dir>/NativeMessagingHosts/<host>.json. We register
-# into every Chromium-based browser actually present on this Mac.
-say "registering the native helper…"
-LAUNCHER="$REPO/native/readit_host.sh"
-cat > "$LAUNCHER" <<EOF
+# --- 4. sync runtime code ----------------------------------------------------------------
+# The sandboxed browser may only execute files under blessed locations, so a
+# copy of the host + server code lives next to the venv. Re-run install.sh
+# after every `git pull` to refresh it.
+say "syncing runtime code…"
+cp "$REPO/native/readit_host.py" "$APP/readit_host.py"
+cp "$REPO/server/backends.py" "$REPO/server/tts_server.py" "$REPO/server/serve_kokoro.py" "$APP/server/"
+cat > "$APP/readit_host.sh" <<EOF
 #!/bin/bash
 # Generated by install.sh — do not edit.
-exec "$REPO/.venv/bin/python" "$REPO/native/readit_host.py" "\$@"
+exec "$APP/.venv/bin/python" "$APP/readit_host.py" "\$@"
 EOF
-chmod +x "$LAUNCHER"
-chmod +x "$REPO/native/readit_host.py"
+chmod +x "$APP/readit_host.sh" "$APP/readit_host.py"
 
-# (browser CANDIDATES list is defined once near the top and reused here.)
+# --- 5. native-messaging helper -------------------------------------------------------------
+# NOTE: Comet reads manifests from the Google/Chrome directory, not its own —
+# register everywhere; each browser only reads its own location.
+say "registering the native helper…"
 REGISTERED=0
 for base in "${CANDIDATES[@]}"; do
   if [[ -d "$base" ]]; then
@@ -126,7 +141,7 @@ for base in "${CANDIDATES[@]}"; do
 {
   "name": "$HOST_NAME",
   "description": "Read-It local MLX voice server helper",
-  "path": "$LAUNCHER",
+  "path": "$APP/readit_host.sh",
   "type": "stdio",
   "allowed_origins": ["chrome-extension://dnpkdcbdccnpnmcojaemknfbnfkfkgld/"]
 }
@@ -137,19 +152,19 @@ EOF
 done
 [[ "$REGISTERED" -gt 0 ]] || warn "no Chromium browser profile found — the manifest will be registered on next run. (Supported: Chrome, Arc, Comet, Brave, Edge, Dia, Chromium.)"
 
-# --- 5. optional weight prefetch ---------------------------------------------------
+# --- 6. optional weight prefetch ---------------------------------------------------------------
 if [[ "$DOWNLOAD_NOW" -eq 1 ]]; then
   say "prefetching Kokoro weights (~0.7 GB)…"
-  "$REPO/.venv/bin/python" "$REPO/native/readit_host.py" --download kokoro
+  "$APP/.venv/bin/python" "$APP/readit_host.py" --download kokoro
   say "weights cached."
 fi
 
-# --- 6. next steps ------------------------------------------------------------------
+# --- 7. next steps --------------------------------------------------------------------------------
 echo
 say "done. One manual step remains (browsers don't allow scripts to install extensions):"
-echo "  1. Open  chrome://extensions  (or Arc/Comet/Brave equivalent)"
-echo "  2. Enable Developer mode, click “Load unpacked”"
-echo "  3. Select:  $REPO/extension"
+echo "  1. Fully quit your browser once (so it picks up the new helper), then reopen it"
+echo "  2. Open  chrome://extensions  (or equivalent), enable Developer mode"
+echo "  3. Click “Load unpacked” and select:  $REPO/extension"
 echo
 say "Then click the Novel Reader icon → Open player. Voice, style, and the"
 say "local server are all controlled inside the player — nothing else to set up."

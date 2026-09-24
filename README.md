@@ -12,6 +12,11 @@ extension downloads the weights and starts/stops the server itself. A remote
 │ popup/player │  stdio JSON   │ (no terminal)  │  subprocess  │ :8902 kokoro  │
 └──────────────┘               └────────────────┘              └───────────────┘
        │ manual endpoint also possible ──► remote vLLM-Omni :8091 (GPU box)
+
+Runtime files live in ~/Library/ReadIt (.venv, host + server code, logs) —
+NOT in the repo. Sandboxed browsers (Comet) refuse to execute anything under
+~/Documents, so install.sh puts everything executable there. Re-run
+install.sh after every `git pull` to refresh the runtime copy.
 ```
 
 ## Requirements
@@ -34,20 +39,23 @@ cd read-it
 ./install.sh --download
 ```
 
-`install.sh` checks the platform, creates `.venv`, installs the Python stack,
-and registers the native-messaging helper with every Chromium browser found on
-your Mac. It then opens `chrome://extensions` for you.
+`install.sh` checks the platform, builds the runtime under `~/Library/ReadIt`
+(venv + host/server code), and registers the native-messaging helper with
+every Chromium browser found on your Mac. It then opens `chrome://extensions`
+for you.
 
 ## Load the extension (the one manual step)
 
 Browsers don't let scripts install extensions, so this click-through is
 unavoidable — it takes 30 seconds:
 
-1. In `chrome://extensions` (or your browser's equivalent), enable
+1. **Fully quit your browser once** (Cmd+Q — not just closing the window),
+   so it picks up the newly registered helper. Then reopen it.
+2. In `chrome://extensions` (or your browser's equivalent), enable
    **Developer mode** (toggle, top right).
-2. Click **Load unpacked**.
-3. Select the `extension/` folder inside this repo.
-4. Click the puzzle icon in the toolbar and **pin Novel Reader**.
+3. Click **Load unpacked**.
+4. Select the `extension/` folder inside this repo.
+5. Click the puzzle icon in the toolbar and **pin Novel Reader**.
 
 The extension id is pinned by the repo (`"key"` in `manifest.json`), so it is
 identical on every machine — the native helper only talks to this exact id.
@@ -68,6 +76,21 @@ identical on every machine — the native helper only talks to this exact id.
 Your choices persist in `chrome.storage.local`: reopening the browser restores
 endpoint, voice, style, theme, and server status without re-downloading
 anything.
+
+## Server lifecycle (read this once)
+
+The voice server is a separate process on your Mac — like Ollama. **Closing
+the player tab, or even quitting the browser, does NOT stop it.** It sits
+idle (holding ~1 GB for the loaded model) until you:
+
+- press **Stop** in the player, or
+- run `./install.sh doctor` to see what's listening, or
+- kill it: `kill $(lsof -nP -iTCP:8902 -sTCP:LISTEN -t)`
+
+This is deliberate: an accidental tab close doesn't nuke your session, and
+reopening the player reconnects instantly with zero reload wait. The player
+always shows the truth in its server line (`Kokoro · :8902` vs
+`Kokoro is stopped`), so a forgotten server is one glance away.
 
 ## Switching voices & backends
 
@@ -108,14 +131,18 @@ regardless of which model serves it.
 | | default |
 |---|---|
 | Kokoro server | `http://127.0.0.1:8902` (`server/serve_kokoro.py`, model `mlx-community/Kokoro-82M-bf16`, voice `af_heart`) |
-| Runtime state | `logs/` — `<backend>.pid`, `<backend>.log`, `download.json` |
+| Runtime | `~/Library/ReadIt/` — `.venv/`, `readit_host.py`, `server/`, `logs/` (`kokoro.pid`, `kokoro.log`, `download.json`) |
 | Weights | Hugging Face cache (`~/.cache/huggingface`), shared with any manual runs |
 | Extension state | `chrome.storage.local` (`ttsSettings`, `backend` snapshot, `readerTheme`) |
 
 ## Troubleshooting
 
-- **“helper not found” in the player** — re-run `./install.sh` with the
-  browser installed (it registers per detected browser). Then reopen the player.
+- **“helper not found” in the player** — fully quit the browser (Cmd+Q) and
+  reopen it; browsers only pick up new helpers at launch. If it persists,
+  re-run `./install.sh` and check `./install.sh doctor`.
+- **“helper failing” in the player** — the helper was found but crashed on
+  launch; the exact browser message is shown. Run `./install.sh doctor` and
+  check `~/Library/ReadIt/logs/`.
 - **Port already in use** — another server owns it; the helper adopts a
   healthy one automatically, otherwise `lsof -nP -iTCP:8902` to find the owner.
 - **Download stuck at 0%** — check `logs/download.log`; usually network or HF
@@ -133,7 +160,8 @@ regardless of which model serves it.
 2. Delete the helper manifests:
    `rm ~/Library/Application\ Support/*/NativeMessagingHosts/com.readit.tts.json ~/Library/Application\ Support/*/*/NativeMessagingHosts/com.readit.tts.json`
    (only touches our file).
-3. `rm -rf` this folder. Weights stay in `~/.cache/huggingface` (delete the
+3. `rm -rf ~/Library/ReadIt` (runtime venv, code copy, logs).
+4. `rm -rf` this folder. Weights stay in `~/.cache/huggingface` (delete the
    `models--mlx-community--Kokoro*` dirs to reclaim ~0.7 GB).
 
 ## Developing & tests
